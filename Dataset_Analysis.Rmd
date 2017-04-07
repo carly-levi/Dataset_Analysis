@@ -1,0 +1,485 @@
+---
+title: "Final_Exam_Carly_Levi"
+author: "Carly Levi"
+date: "December 7, 2015"
+output: html_document
+runtime: shiny
+---
+###Load Libraries
+```{r}
+library(ggplot2)
+library(stringr)
+library(dplyr)
+set.seed(48293)
+```
+
+#Part 1: American Salaries
+
+##Question 1
+###Load Dataset
+```{r}
+load(url("https://stat.duke.edu/~mc301/data/acs.RData")) #acs
+```
+###Subset Data by Employment and Income
+```{r}
+newdata <- acs %>%
+  filter(income > 0, employment == "employed") #filter data for individuals who are employed and have an income greater than 0
+newdata <- as.data.frame(newdata) #put newdata into a data frame
+#newdata
+```
+
+##Question 2
+###Distribution of income and summary statistics
+```{r warning = F, message = F}
+ggplot(data = newdata, aes(x = income)) +
+  geom_histogram()
+
+newdata %>%
+  summarize(mean = mean(income), median = median(income), sd = sd(income))
+```
+The distribution of income is right skewed due to income having a natural minimum of $0. The mean of the distribution is $47,236.21, while the median is $34,000 further representing the right-skew of the distribution. This distribution shows that a majority of the individuals in the dataset earn between $0 and $100,000 per year.
+
+###Distribution of income faceted by gender
+```{r message = F}
+ggplot(data = newdata, aes(x = income)) +
+  geom_histogram() +
+  facet_wrap(~gender)
+```
+Both distributions of income for both males and females is right-skewed due to the right-skewed distribution of income that is not faceted by gender and due to the natural minimum of income, $0.  While the distributions for males and females are both right-skewed, the female distribution of income has higher counts of individuals earning between $0 and $50,000 than the male distribution.  Based on the male income distribution, a large proportion of male individuals seem to earn between $50,000 and $100,000 per year.
+
+###Summary statistics for female income
+```{r}
+female_summ <- newdata %>%
+  filter(gender == "female")%>%
+  summarize(mean = mean(income), median = median(income), sd = sd(income))
+female_summ
+```
+
+###Summary statistics for male income
+```{r}
+male_summ <- newdata %>%
+  filter(gender == "male")%>%
+  summarize(mean = mean(income), median = median(income), sd = sd(income))
+male_summ
+```
+By looking at the summary statistics and distribution of income, on average, males have a higher income than females.  The mean income for males is $59,697.73 per year, while the mean income for females in this dataset is $31,434.87 per year. The lower mean income for females can be seen in the female distribution of income where females have a higher counts of individuals falling between $0 and $50,000 per year.  The median income per year for males is also much higher, $41,000, than that of females, $24,000, also due to the higher count of female individuals making between $0 and $50,000 per year. The difference between medians for income of males and females is $17,000 per year.
+
+
+###Hypothesis test
+```{r}
+males <- newdata %>%
+  filter(gender == "male") #filter newdata by gender = male
+
+females <- newdata %>%
+  filter(gender == "female") #filter newdata for gender = female
+```
+
+####Hypotheses
+Null Hypothesis:       
+$H_O: median_{male} = median_{female}$ 
+There is no difference in median incomes between male and female employees
+
+Alternative Hypothesis:       
+$H_A: median_{male} \neq median_{female}$ 
+There is a difference in median incomes between male and female employees
+
+```{r}
+numsim <- 1000 #number of simulations
+samplestat <- data.frame(medians = rep(NA, numsim)) #data frame for differences in medians
+df <- data.frame(income = newdata$income, gender = rep(NA, length(newdata$income))) #data frame for sampling gender
+for (i in 1:numsim){
+  df$gender <- sample(newdata$gender, length(newdata$income), replace = FALSE)
+  malesdf <- df %>%
+    filter(gender == "male") #filter df by gender = male
+  femalesdf <- df %>%
+    filter(gender == "female") #filter df for gender = female
+  femalemed <- median(femalesdf$income) #median for femaledf income
+  malemed <- median(malesdf$income) #median for maledf income
+  samplestat$medians[i] <- malemed - femalemed #adding difference in medians to samplesata data frame
+}
+```
+
+###p_value
+```{r}
+p_value <- (sum(samplestat$medians >= (median(males$income)-median(females$income)))/ length(samplestat$medians))
+p_value * 2 #multiply by two becayse two-tailed test
+```
+The calculated p_value is 0%, which is below the 5% significane level, so we can reject the null hypothesis in favor of the alternative hypothesis that there is in fact a difference between the median income of males and females per year. 
+
+###95% confidence interval
+```{r}
+bootstrap <- sample(samplestat$medians, numsim, replace = TRUE)
+se <- sd(bootstrap)
+bootstrap_int <- round((median(males$income) - median(females$income)) + c(-1,1) * 1.96 * se, 4)
+bootstrap_int
+```
+Based on the calculated confidence interval, we are 95% certain that the true difference in median income between males and females is between $11,080.49 and $22,919.51.  The true difference in median income between males and females is $17,000 which was calculated from the summary statistics of male and female income above. The true difference does infact fall within the 95% confidence interval.
+
+##Question 3
+```{r}
+newdata <- newdata %>%
+  mutate(full_part = ifelse(hrs_work >= 40, "fulltime",
+                            ifelse(hrs_work < 40, "parttime", hrs_work)))
+#newdata with new variable full_part
+```
+
+##Question 4
+```{r}
+fulltime <- newdata %>%
+  filter(newdata[,14] == "fulltime") #filters full_part variable for "fulltime" employees
+parttime <- newdata %>%
+  filter(newdata[,14] == "parttime") #filters full_art variable for "parttime" employees
+#fulltime
+#parttime
+```
+
+##Question 3 ctd.
+```{r}
+full_time <- (nrow(fulltime) / nrow(newdata)) * 100
+full_time #percentage of full time employees
+
+part_time <- (nrow(parttime) / nrow(newdata)) * 100
+part_time #percentage of part time employees
+```
+
+###Distribution of the variable full_part
+```{r}
+ggplot(data = newdata, aes(x = full_part)) +
+  geom_histogram() 
+```
+72.05% of the individuals in the newdata dataset are full time employees, while 27.95% of individuals in the newdata dataset are part time employees.
+
+###Distribution of the variable full_part faceted by gender
+```{r}
+ggplot(data = newdata, aes(x = full_part)) +
+  geom_histogram() +
+  facet_wrap(~gender)
+```
+Based on the distribution of the variable full_part, faceted by gender, it seems that there are more males and females who work full time rather than part time.  However, there are many more men who work full time than part time while the number of females who work full time and part time is more equal. This distribution however, does not tell us whether or not females are more heavily represented among full time or part time employees, so some summary statistics are necessary.
+
+###Calculating Summary Statistics
+```{r}
+malefull <- newdata %>%
+  filter(newdata[,14] == "fulltime", newdata[,6] == "male")
+#filter data for full time males
+femalefull <- newdata %>%
+  filter(newdata[,14] == "fulltime", newdata[,6] == "female")
+#filter data for full time females
+malepart <- newdata %>%
+  filter(newdata[,14] == "parttime", newdata[,6] == "male")
+#filter data for part time males
+femalepart <- newdata %>%
+  filter(newdata[,14] == "parttime", newdata[,6] == "female")
+#ilter data for part time females
+
+female_f <- ((nrow(femalefull)) / (nrow(femalefull) + nrow(malefull))) * 100
+female_f #calculate proportion of full time females
+
+female_p <- ((nrow(femalepart)) / (nrow(femalepart) + nrow(malepart))) * 100
+female_p #calculate proportion of part time females
+```
+Females make up 35.63% of the total number of individuals in the full time workforce.  On the other hand, females make up 65.91% of the total number of individuals in the part time work force.  Therefore, women are more heavily represented among part time employess rather than full time employees.  This may be so because women are traditionally the people who care for thei children at home, while the men go off to work each day, which would explain the higher percentage of males in the full time workforce.
+
+##Question 5
+```{r}
+males1 <- newdata %>%
+  group_by(full_part) %>%
+  filter(gender == "male", full_part == "fulltime") #filter newdata for full time male employees
+
+females1 <- newdata %>%
+  group_by(full_part) %>%
+  filter(gender == "female", full_part == "fulltime") #filter newdata for full time female employees
+```
+
+####Hypotheses
+Null Hypothesis:       
+$H_O: median_{male} = median_{female}$ 
+There is no difference in median incomes between full time male and female employees
+
+Alternative Hypothesis:       
+$H_A: median_{male} \neq median_{female}$ 
+There is a difference in median incomes between full time male and female employees
+
+```{r}
+numsim <- 1000 #number of simulations
+samplestat <- data.frame(medians = rep(NA, numsim)) #data frame for differences in medians
+df <- data.frame(full_part = newdata$full_part, income = newdata$income, gender = rep(NA, length(newdata$income))) #data frame for sampling gender
+for (i in 1:numsim){
+  df$gender <- sample(newdata$gender, length(newdata$income), replace = FALSE)
+  malesdf <- df %>%
+    group_by(full_part) %>%
+    filter(gender == "male", full_part == "fulltime") #filter df by full time male employees
+  femalesdf <- df %>%
+    group_by(full_part) %>%
+    filter(gender == "female", full_part == "fulltime") #filter df full time female employees
+  femalemed <- median(femalesdf$income) #median for femaledf income
+  malemed <- median(malesdf$income) #median for maledf income
+  samplestat$medians[i] <- malemed - femalemed #adding difference in medians to samplesata data frame
+}
+```
+
+###p_value
+```{r}
+p_value <- (sum(samplestat$medians >= (median(males1$income)-median(females1$income)))/ length(samplestat$medians))
+p_value * 2 #multiply by 2 because two-tail test
+```
+The calculated p_value is 0%, which is below the 5% significane level, so we can reject the null hypothesis in favor of the alternative hypothesis that there is in fact a difference between the median income of full time male and female employees.
+
+###95% confidence interval
+```{r}
+bootstrap <- sample(samplestat$medians, numsim, replace = TRUE)
+se <- sd(bootstrap)
+bootstrap_int <- round((median(males$income) - median(females$income)) + c(-1,1) * 1.96 * se, 4)
+bootstrap_int
+```
+Based on the calculated confidence interval, we are 95% certain that the true difference in median income between full time male and female employees is between $11,347.01 and $22,652.99. 
+
+###Summary statistics to find true difference
+```{r eval = T}
+fullfem <- newdata %>%
+  group_by(full_part) %>%
+  filter(gender == "female") %>%
+  summarize(median = median(income))
+fullfem
+
+fullmale <- newdata %>%
+  group_by(full_part) %>%
+  filter(gender == "male") %>%
+  summarize(median = median(income))
+fullmale
+```
+The true difference in median income between males and females is $15,500 which was calculated from the summary statistics of full time male and female employees above. The true difference does infact fall within the 95% confidence interval.
+
+##Question 6
+```{r}
+males2 <- newdata %>%
+  group_by(full_part) %>%
+  filter(gender == "male", full_part == "parttime") #filter newdata for full time male employees
+
+
+females2 <- newdata %>%
+  group_by(full_part) %>%
+  filter(gender == "female", full_part == "parttime") #filter newdata for full time female employees
+```
+
+####Hypotheses
+Null Hypothesis:       
+$H_O: median_{male} = median_{female}$ 
+There is no difference in median incomes between part time male and female employees
+
+Alternative Hypothesis:       
+$H_A: median_{male} \neq median_{female}$ 
+There is a difference in median incomes between part time male and female employees
+
+```{r}
+numsim <- 1000 #number of simulations
+samplestat <- data.frame(medians = rep(NA, numsim)) #data frame for differences in medians
+df <- data.frame(full_part = newdata$full_part, income = newdata$income, gender = rep(NA, length(newdata$income))) #data frame for sampling gender
+for (i in 1:numsim){
+  df$gender <- sample(newdata$gender, length(newdata$income), replace = FALSE)
+  malesdf <- df %>%
+    group_by(full_part) %>%
+    filter(gender == "male", full_part == "parttime") #filter df by full time male employees
+  femalesdf <- df %>%
+    group_by(full_part) %>%
+    filter(gender == "female", full_part == "parttime") #filter df full time female employees
+  femalemed <- median(femalesdf$income) #median for femaledf income
+  malemed <- median(malesdf$income) #median for maledf income
+  samplestat$medians[i] <- femalemed - malemed #adding difference in medians to samplesata data frame
+}
+```
+
+###p_value
+```{r}
+p_value <- (sum(samplestat$medians >= (median(females2$income)-median(males2$income)))/ length(samplestat$medians))
+p_value * 2 #multiply by two because it's a two tail test
+```
+The calculated p_value is 5.6%, which is above the 5% significane level, so we cannot reject the null hypothesis in favor of the alternative hypothesis.  Therefore, there is no difference in median incomes between part time male and female employees. Since we cannot reject the null hypothesis, we do not need to find the 95% confidence interval.
+
+##Question 7
+Based on the results from the two previous hypothesis tests, working full time versus part time is a confounding variable in the relationship between gender and income.  Given that the hypothesis test on full time employees showed a significant difference  in median incomes between males and females and the hypothesis test on part time employess did not, suggests that working full time versus part time does play a role in determining an individual's yearly income.  As a result, since working full time or part time is influenced by gender and working full time or part time influences income, working full or part time might is a confounding variable in the relationship between gender and income.
+
+
+##Question 8
+Modelling the log(income) shows a more clear linear relationship than modelling income.  Also, since income is extremely right-skewed in a distribution, as seen in previous questions, correlation and regression can be influenced a lot by outliers.  Using log(income) helps to reduce and eliminate the right-skew of the data.
+
+###Plot of hrs_work vs log(income)
+```{r}
+ggplot(data = newdata, aes(x = hrs_work, y = log(income))) +
+  geom_point(position = "jitter") +
+  geom_smooth(method = "lm", color="red")
+```
+The dotplot shows a clear linear relationship between the variables hrs_work and log(income).  Compared to the plot below, the plot of log(income) has reduced and even eliminated the effects of the right-skewed distribution of income.
+
+###Plot of hrs_work vs income
+```{r}
+ggplot(data = newdata, aes(x = hrs_work, y = income)) +
+  geom_point(position = "jitter") +
+  geom_smooth(method = "lm", color="red")
+```
+The dotplot shows a linear relationship between the variables hrs_work and income, but the majority of the observations are grouped near the bottom of the plot, providing possible misinterpretations of a linear regression.
+
+##Question 9
+```{r eval = T}
+best_model <- lm(log(income) ~ hrs_work + race + age + gender + citizen + time_to_work + lang + married + edu + disability + birth_qrtr + hrs_work*gender, data = newdata)
+
+AIC(best_model)
+
+final_model <- step(best_model, direction = "backward")
+
+AIC(final_model)
+summary(final_model) #unexponentiated coefficients
+```
+The final model is $\widehat{log(income)} = 7.5206 + 0.0400hrs\_work + 0.0212age + -1.0440gender + 0.0027time\_to\_work + 0.2036married + 0.3554edu + -0.5765disability + 0.0207hrs\_work:gender$.  When using backward selection, variable and or interactions are taken out one at a time based on the amount of variance they explain in the response variable, log(income).  As variables and interations are removed, the AIC value decreases, meaning that after each step, the new model is more parsimonious.  The final model removed the variables race, gender, citizen, lang, and birth_qrtr in order to find the most parsimonious model with an AIC of 1825.893. 
+
+##Question 10
+```{r}
+exp(final_model$coefficients) #exponentiated coefficients
+```
+###Final model with exponentiated coefficients
+$\widehat{income} = 1845.75 + 1.04hrs\_work + 1.02age + 0.35gender + 1.00time\_to\_work + 1.23married + 1.43edu + 0.56disability + 1.02hrs\_work:gender$
+
+###Slope coeffiecients
+####Age
+For every one year increase in a person's age, their income will increase by a factor of 1.02 meaning that their income will increase by 2% each year.
+
+####Disability
+The coefficient of the variable disability means that a person with a disability will have a decreased income by a factor of 0.56 compared to a person without a disability.
+
+####Education
+The coefficient of the variable education means that a person with a college degree will have an increased income by a factor of 1.42 compared to a person with a high school degree or lower.  a person with a graduate degree will have an increase income by a factor of 2.35 compared to a person with a high school degree or lower.
+
+##Question 11
+###Males
+$\widehat{income} = 1845.75 + 1.04hrs\_work + 1.02age + 1.00time\_to\_work + 1.23married + 1.43edu + 0.56disability$
+
+####hrs_work
+for every extra hour worked per week, a male's income is expected to increased by a factor of 1.04.
+
+###Females
+$\widehat{income} = 1845.75 + 2.06hrs\_work + 1.02age + 0.35gender + 1.00time\_to\_work + 1.23married + 1.43edu + 0.56disability$
+
+####hrs_wrk
+for every extra hour worked per week, a female's income is expected to increase by a factor of 2.06.
+
+
+##Question 12
+```{r}
+summary(final_model)$r.squared
+```
+The $R^2$ value for the final_model is .5479 meaning that 54.79% of the total variance of log(income) per person can be explained by the variable andinteractions in the final_model
+
+
+
+#Part 2: Movies
+```{r}
+load(url("https://stat.duke.edu/~mc301/data/movies.Rdata"))
+#movies
+```
+
+```{r}
+movies <- movies %>%
+  mutate(new_studio = ifelse(str_detect(studio, "20th"), "20th Century Fox",
+                             ifelse(str_detect(studio, "Warner"), "Warner Brothers",
+                                    ifelse(str_detect(studio, "MGM"), "MGM",
+                                          ifelse(str_detect(studio, "Paramount"), "Paramount",
+                                                 ifelse(is.na(studio), "Other",
+                                                        ifelse(str_detect(studio, "Sony"), "Sony",
+                                                               ifelse(str_detect(studio, "Universal"), "Universal", "Other"))))))))
+#as.data.frame(movies$new_studio)
+#movies$studio
+```
+
+```{r}
+num_studios <- movies %>%
+  group_by(factor(new_studio)) %>%
+  summarise(len = length(title)) 
+num_studios1 <- as.data.frame(num_studios)
+num_studios2 <- num_studios1[with(num_studios1, order(-len)), ]
+num_studios2
+```
+
+```{r eval = TRUE}
+#fluidpage(
+  sidebarLayout(
+    sidebarPanel(
+      
+      selectInput("var1", 
+                  "Color Variable",
+                    choices = c("type", 
+                    "genre",
+                    "mpaa_rating",
+                    "studio"
+                    )),
+      
+      sliderInput("xmin", 
+                  "X Min:", 
+                min=0, max=100, value=64.5, step = .1),
+                    
+      
+     sliderInput("xmax", 
+                 "X Max:", 
+                min=0, max=100, value=70.5, step = .1),
+                    
+      
+      sliderInput("ymin", 
+                  "Y Min:", 
+                min=0, max=100, value= 64.5, step = .1),
+                    
+      
+      sliderInput("ymax", 
+                  "Y Max:", 
+                min=0, max=100, value=70.5, step = .1),
+                    
+      
+      hr()
+        
+      ),
+
+    mainPanel(
+      
+      plotOutput('Plot')
+    )
+
+    )
+
+output$Plot <- renderPlot({
+    
+    pop_name1 = switch(input$var1, 
+                    Type = "type", 
+                    Genre = "genre", 
+                    Rating = "mpaa_rating", 
+                    Studio = "studio")
+    
+
+
+      ggplot(data = movies, aes_string(x = "audience_score", y = "critics_score", color = input$var1)) +
+      geom_point(position = "jitter") +
+        xlim(0,100) +
+        ylim(0,100) +
+        xlab("Audience Score") +
+        ylab("Critics Score") +
+        ggtitle("Audience Score vs. Critics Score") 
+  })
+```
+
+##Question 3
+```{r}
+ggplot(data = movies, aes(x = audience_score, y = critics_score, color = genre)) +
+  geom_point(position = "jitter")
+```
+
+```{r eval = T}
+genre <- movies %>%
+  group_by(genre) %>%
+  summarise(audience = mean(audience_score), critics = mean(critics_score), difference = audience-critics)
+genre1 <- as.data.frame(genre)
+genre2 <- genre1[with(genre1, order(-difference)),]
+genre2
+```
+The genres with the largest discrepancies between audience score and critics score are Science Fiction & Fantasy, Comedy, and Action & Adventure in that order.  The discrepancies were calculated by subtracting the average audience score from the average critics score for each genre of movie.
+
+
+
+
+
